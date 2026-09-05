@@ -244,6 +244,43 @@
     * { transition: none !important; }
   }
 </style>
+<!-- arcaide-leaderboard -->
+<script src="https://gilmagnum.github.io/games/config.js"></script>
+<script src="https://gilmagnum.github.io/games/leaderboard.js"></script>
+<style>
+  .score-label{font-weight:700;opacity:.9}
+  .lb-btn{margin-top:10px;padding:9px 18px;border:1px solid rgba(255,255,255,.2);border-radius:12px;
+    background:rgba(255,255,255,.08);color:inherit;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  .lb-btn:hover{background:rgba(255,255,255,.16)}
+  .lb-home{display:inline-block;margin:10px 0 0 12px;font-size:13px;opacity:.65;text-decoration:none;color:inherit}
+  .lb-home:hover{opacity:1}
+/* ===== arcaide-responsive ===== */
+@media (max-height: 560px) {
+  body { padding: 8px 12px; align-items: flex-start; }
+  .console { padding: 10px 12px 12px; border-radius: 12px; max-width: 560px; }
+  header { margin-bottom: 4px; }
+  .title { font-size: 15px; }
+  .hud { margin: 2px 0; }
+  .grid-wrap { margin-bottom: 8px; }
+  .message { font-size: 12px; margin: 4px 0; }
+  .footnote { display: none; }
+  .lb-btn { margin-top: 6px; padding: 7px 14px; font-size: 13px; }
+}
+@media (max-width: 380px) {
+  body { padding: 12px 8px; }
+  .console { padding: 14px 12px 16px; }
+}
+</style>
+<!-- arcaide-pwa: installable to the home screen -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<meta name="theme-color" content="#eaf2fd">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="שביל הנחש">
 </head>
 <body>
 
@@ -252,6 +289,7 @@
     <span class="title">שביל הנחש</span>
     <div class="header-right">
       <span class="stage-label" id="stageLabel">שלב 1</span>
+      <span class="stage-label score-label" id="scoreLabel">0 נק'</span>
       <button class="sound-toggle" id="soundToggle" title="השתק/הפעל צלילים">🔊</button>
     </div>
   </header>
@@ -272,6 +310,10 @@
 
   <div class="controls">
     <button class="primary" id="actionBtn">התחל</button>
+    <div>
+      <button class="lb-btn" id="btnScores">🏆 טבלת שיאים</button>
+      <a class="lb-home" href="https://gilmagnum.github.io/games/">← כל המשחקים</a>
+    </div>
   </div>
 
   <div class="footnote">
@@ -289,6 +331,8 @@
   const messageEl = document.getElementById('message');
   const livesEl = document.getElementById('lives');
   const stageLabelEl = document.getElementById('stageLabel');
+  const scoreLabelEl = document.getElementById('scoreLabel');
+  function renderScore() { scoreLabelEl.textContent = score.toLocaleString('he-IL') + " נק'"; }
   const actionBtn = document.getElementById('actionBtn');
   const timerTrackEl = document.getElementById('timerTrack');
   const timerFillEl = document.getElementById('timerFill');
@@ -306,6 +350,7 @@
   const REVEAL_MS = 5000;
 
   let level = 1;
+  let score = 0;
   let lives = START_LIVES;
   let gridSize = 4;
   let path = [];              // array of {r,c} — no directional meaning, fixed until level changes
@@ -386,8 +431,18 @@
     const wrap = gridStageEl.parentElement; // .grid-wrap — width is stable regardless of content
     const available = (wrap && wrap.clientWidth) ? wrap.clientWidth : 400;
     let cell = Math.floor((available - (size - 1) * GAP) / size);
-    cell = Math.max(MIN_CELL, Math.min(MAX_CELL, cell));
-    return cell;
+
+    // arcaide-responsive: also fit whatever vertical room is left, so the
+    // board never pushes the action button off a landscape phone.
+    const vh = window.innerHeight || document.documentElement.clientHeight || 700;
+    const top = gridStageEl.getBoundingClientRect().top;
+    const reserved = vh < 560 ? 96 : 150;   // action button + notes below the grid
+    const availH = Math.max(90, vh - top - reserved);
+    const cellH = Math.floor((availH - (size - 1) * GAP) / size);
+    cell = Math.min(cell, cellH);
+
+    const minCell = vh < 560 ? 15 : MIN_CELL;
+    return Math.max(minCell, Math.min(MAX_CELL, cell));
   }
   function pathLengthForLevel(lvl, size) {
     const maxLen = size * size - 1;
@@ -641,6 +696,11 @@
         actionBtn.textContent = 'התחלה מחדש';
         actionBtn.style.visibility = 'visible';
         actionBtn.onclick = () => { sfx.click(); resetGame(); };
+
+        // ArcAIde global leaderboard
+        if (window.Leaderboard) {
+          setTimeout(() => Leaderboard.gameOver(score, { level: level, grid: gridSize }), 1100);
+        }
       } else {
         overlayEl.innerHTML = '';
         setMessage('לא מדויק — נסו שוב, אותה תבנית. נשארו ' + lives + ' חיים', 'fail');
@@ -655,9 +715,12 @@
 
   function succeedLevel() {
     state = 'locked';
+    const gained = path.length * gridSize;   // longer path on a bigger grid = more points
+    score += gained;
+    renderScore();
     lives = Math.min(MAX_LIVES, lives + 1);
     renderLives();
-    setMessage('מדויק! חיים חוזר ← שלב הבא', 'win');
+    setMessage('מדויק! +' + gained + ' נק\' · חיים חוזר ← שלב הבא', 'win');
     sfx.success();
     level++;
     actionBtn.textContent = 'לשלב הבא';
@@ -667,6 +730,8 @@
 
   function resetGame() {
     level = 1;
+    score = 0;
+    renderScore();
     lives = START_LIVES;
     startLevel();
   }
@@ -712,6 +777,26 @@
   document.addEventListener('touchcancel', endDrag);
 
   actionBtn.onclick = () => { sfx.click(); startLevel(); };
+
+  // arcaide-responsive: re-lay-out the board when the window rotates or resizes
+  let __resizeT = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(__resizeT);
+    __resizeT = setTimeout(() => {
+      if (state === 'idle' || !gridSize) return;
+      buildGridDOM(gridSize);
+      if (state === 'input' || state === 'locked') drawStaticPattern(state === 'locked');
+    }, 180);
+  });
+
+  // ArcAIde global leaderboard
+  renderScore();
+  if (window.Leaderboard) {
+    Leaderboard.init({ game: 'snake-memory', title: 'שביל הנחש', scoreLabel: 'נקודות' });
+    document.getElementById('btnScores').addEventListener('click', () => Leaderboard.show());
+  } else {
+    document.getElementById('btnScores').style.display = 'none';
+  }
   renderLives();
 })();
 </script>
