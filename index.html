@@ -2,9 +2,10 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>שביל הנחש — משחק זיכרון</title>
 <style>
+  html, body { overflow-x: hidden; }
   :root {
     --bg: #eaf2fd;
     --panel: #ffffff;
@@ -29,8 +30,8 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, 'Segoe UI', 'Heebo', Arial, sans-serif;
-    min-height: 100vh;
     direction: rtl;
+    width: 100%;
   }
 
   body {
@@ -38,6 +39,8 @@
     align-items: center;
     justify-content: center;
     padding: 24px 16px;
+    min-height: 100vh;   /* fallback for browsers without dvh support */
+    min-height: 100dvh;  /* actual visible height on mobile, ignores the collapsing address bar */
   }
 
   .console {
