@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>שביל הנחש — משחק זיכרון</title>
+<title>שביל הנחש · arcAId</title>
 <style>
   html, body { overflow-x: hidden; }
   :root {
@@ -270,6 +270,15 @@
   body { padding: 12px 8px; }
   .console { padding: 14px 12px 16px; }
 }
+
+/* ===== arcaide-theme: this game is light by default, so here is its dark side ===== */
+html[data-arcade-theme="dark"]{
+  --bg:#0e1526; --panel:#161f36; --border:rgba(255,255,255,.10);
+  --ink:#e8eeff; --muted:#93a1c4; --blue:#5b8cff; --blue-dim:#1d2b4d;
+}
+html[data-arcade-theme="dark"] .console{ box-shadow:0 10px 30px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3) }
+html[data-arcade-theme="dark"] .cell{ background:#1b2540; border-color:rgba(255,255,255,.07) }
+html[data-arcade-theme="dark"] .sound-toggle:hover{ background:#22304f }
 </style>
 <!-- arcaide-pwa: installable to the home screen -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -290,7 +299,7 @@
     <div class="header-right">
       <span class="stage-label" id="stageLabel">שלב 1</span>
       <span class="stage-label score-label" id="scoreLabel">0 נק'</span>
-      <button class="sound-toggle" id="soundToggle" title="השתק/הפעל צלילים">🔊</button>
+
     </div>
   </header>
 
@@ -310,10 +319,6 @@
 
   <div class="controls">
     <button class="primary" id="actionBtn">התחל</button>
-    <div>
-      <button class="lb-btn" id="btnScores">🏆 טבלת שיאים</button>
-      <a class="lb-home" href="https://gilmagnum.github.io/games/">← כל המשחקים</a>
-    </div>
   </div>
 
   <div class="footnote">
@@ -336,7 +341,7 @@
   const actionBtn = document.getElementById('actionBtn');
   const timerTrackEl = document.getElementById('timerTrack');
   const timerFillEl = document.getElementById('timerFill');
-  const soundToggleEl = document.getElementById('soundToggle');
+  const soundToggleEl = { textContent: '', addEventListener: function(){} }; // arcaide-bar: moved to the shared bar
 
   let CELL = 46;
   const MIN_CELL = 26;
@@ -697,7 +702,7 @@
         actionBtn.style.visibility = 'visible';
         actionBtn.onclick = () => { sfx.click(); resetGame(); };
 
-        // ArcAIde global leaderboard
+        // arcAId global leaderboard
         if (window.Leaderboard) {
           setTimeout(() => Leaderboard.gameOver(score, { level: level, grid: gridSize }), 1100);
         }
@@ -723,9 +728,8 @@
     setMessage('מדויק! +' + gained + ' נק\' · חיים חוזר ← שלב הבא', 'win');
     sfx.success();
     level++;
-    actionBtn.textContent = 'לשלב הבא';
-    actionBtn.style.visibility = 'visible';
-    actionBtn.onclick = () => { sfx.click(); startLevel(); };
+    actionBtn.style.visibility = 'hidden';
+    setTimeout(() => { if (state === 'locked') startLevel(); }, 900);   // arcaide: auto-advance
   }
 
   function resetGame() {
@@ -778,6 +782,15 @@
 
   actionBtn.onclick = () => { sfx.click(); startLevel(); };
 
+  // arcAId shared control bar
+  if (window.Arcade) {
+    Arcade.controls({
+      onRestart: function () { sfx.click(); resetGame(); },
+      onMute:    function (m) { soundOn = !m; if (soundOn) ensureAudio(); },
+      theme: true
+    });
+  }
+
   // arcaide-responsive: re-lay-out the board when the window rotates or resizes
   let __resizeT = null;
   window.addEventListener('resize', () => {
@@ -789,13 +802,10 @@
     }, 180);
   });
 
-  // ArcAIde global leaderboard
+  // arcAId global leaderboard
   renderScore();
   if (window.Leaderboard) {
     Leaderboard.init({ game: 'snake-memory', title: 'שביל הנחש', scoreLabel: 'נקודות' });
-    document.getElementById('btnScores').addEventListener('click', () => Leaderboard.show());
-  } else {
-    document.getElementById('btnScores').style.display = 'none';
   }
   renderLives();
 })();
